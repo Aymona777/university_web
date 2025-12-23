@@ -106,7 +106,7 @@ useEffect(() => {
 
   // step3
   const [nationalIdScan, setNationalIdScan] = useState(null);
-   const [profilePhoto, setProfilePhoto] = useState(null);
+  
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -141,10 +141,7 @@ useEffect(() => {
       const okType = ["image/jpeg", "image/png"].includes(nationalIdScan.type);
       if (!okType) return "Only JPEG/PNG allowed";
       if (nationalIdScan.size > 10 * 1024 * 1024) return "File must be <= 10MB";
-      if (!profilePhoto) return "Profile photo is required";
-const okType2 = ["image/jpeg", "image/png"].includes(profilePhoto.type);
-if (!okType2) return "Profile photo: Only JPEG/PNG allowed";
-if (profilePhoto.size > 10 * 1024 * 1024) return "Profile photo: Max 10MB";
+      
 
       return "";
     }
@@ -360,15 +357,7 @@ if (profilePhoto.size > 10 * 1024 * 1024) return "Profile photo: Max 10MB";
                 <p className={styles.subtitle} style={{ marginTop: 0 }}>
                   Tip: upload a clear photo to speed up approval.
                 </p>
-                <label className={styles.label}>
-  Profile Photo (JPEG/PNG)
-  <input
-    className={styles.input}
-    type="file"
-    accept="image/png,image/jpeg"
-    onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
-  />
-</label>
+                
 
               </>
             )}
