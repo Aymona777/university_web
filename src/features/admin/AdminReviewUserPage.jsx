@@ -9,7 +9,7 @@ import {
 import styles from "./admin.module.css";
 
 export default function AdminReviewUserPage() {
-  const { userId } = useParams(); // مهم: userId
+  const { userId } = useParams();
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -21,8 +21,16 @@ export default function AdminReviewUserPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
 
-  const profilePhotoUrl = useMemo(() => user?.profile?.profilePhotoUrl || "", [user]);
-  const nationalIdScanUrl = useMemo(() => user?.nationalIdScanUrl || "", [user]);
+  // ✅ FIX: API بيرجع profilePhotoUrl top-level
+  const profilePhotoUrl = useMemo(
+    () => user?.profilePhotoUrl || user?.profile?.profilePhotoUrl || "",
+    [user]
+  );
+
+  const nationalIdScanUrl = useMemo(
+    () => user?.nationalIdScanUrl || user?.profile?.nationalIdScanUrl || "",
+    [user]
+  );
 
   async function load() {
     try {
@@ -47,7 +55,6 @@ export default function AdminReviewUserPage() {
       setActionError("");
       setActionOk("");
       const res = await sendVerification(userId);
-      // في testing mode غالبًا بيرجع verificationToken
       if (res?.verificationToken) setVerificationToken(res.verificationToken);
       setActionOk(res?.message || "Verification triggered");
     } catch (e) {
@@ -103,6 +110,11 @@ export default function AdminReviewUserPage() {
     }
   }
 
+  // (اختياري) لو الصورة اتخزّنت بنفس الاسم والمتصفح عامل cache
+  // هيفرض reload للصورة مرة واحدة عند كل load
+  const photoSrc = profilePhotoUrl ? `${profilePhotoUrl}${profilePhotoUrl.includes("?") ? "&" : "?"}v=${user?.id || ""}` : "";
+  const idSrc = nationalIdScanUrl ? `${nationalIdScanUrl}${nationalIdScanUrl.includes("?") ? "&" : "?"}v=${user?.id || ""}` : "";
+
   return (
     <div className={styles.page}>
       <div className={styles.breadcrumbs}>
@@ -144,88 +156,81 @@ export default function AdminReviewUserPage() {
               <div className={styles.cardTitle}>User Details</div>
               <div className={styles.kv}>
                 <div className={styles.k}>National ID</div>
-                <div className={styles.v}>{user.nationalId}</div>
+                <div className={styles.v}>{user.nationalId || "-"}</div>
 
                 <div className={styles.k}>DOB</div>
-                <div className={styles.v}>{user.dateOfBirth || "-"}</div>
+                <div className={styles.v}>{user.birthDate || "-"}</div>
 
                 <div className={styles.k}>Faculty / Dept / Year</div>
-                <div className={styles.v}>{user.facultyId}/{user.departmentId}/{user.year}</div>
+                <div className={styles.v}>
+                  {user.faculty || "-"} / {user.department || "-"} / {user.year || "-"}
+                </div>
 
                 <div className={styles.k}>Created</div>
-                <div className={styles.v}>{user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}</div>
+                <div className={styles.v}>{user.registrationDate || "-"}</div>
               </div>
             </div>
 
             <div className={styles.card}>
               <div className={styles.cardTitle}>Email Verification</div>
+              <div className={styles.muted}>Email must be verified before approval.</div>
 
-              {!user.emailVerified && (
-                <>
-                  <p className={styles.muted}>
-                    Email must be verified before approval.
-                  </p>
+              <div className={styles.row}>
+                <button className={styles.btnPrimary} onClick={onSendVerification}>
+                  Send verification
+                </button>
+              </div>
 
-                  <div className={styles.row}>
-                    <button className={styles.btnPrimary} onClick={onSendVerification}>
-                      Send verification
-                    </button>
-                  </div>
-
-                  <div className={styles.row}>
-                    <input
-                      className={styles.input}
-                      value={verificationToken}
-                      onChange={(e) => setVerificationToken(e.target.value)}
-                      placeholder="Paste token here (testing mode)"
-                    />
-                    <button className={styles.btn} onClick={onVerifyEmail}>
-                      Verify now
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {user.emailVerified && (
-                <p className={styles.okText}>✓ Email verified. You can approve.</p>
-              )}
+              <div className={styles.row}>
+                <input
+                  className={styles.input}
+                  value={verificationToken}
+                  onChange={(e) => setVerificationToken(e.target.value)}
+                  placeholder="Paste token here (testing mode)"
+                />
+                <button className={styles.btn} onClick={onVerifyEmail}>
+                  Verify now
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className={styles.card}>
+          <div className={styles.card} style={{ marginTop: 12 }}>
             <div className={styles.cardTitle}>Photo Comparison</div>
+
             <div className={styles.images}>
               <div>
                 <div className={styles.imgLabel}>Profile Photo</div>
-                <img
-                  className={styles.bigImg}
-                  src={profilePhotoUrl}
-                  alt="profile"
-                  onError={(e) => (e.currentTarget.style.opacity = "0.2")}
-                />
+                {photoSrc ? (
+                  <img
+                    className={styles.bigImg}
+                    src={photoSrc}
+                    alt="profile"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className={styles.bigImg} style={{ display: "grid", placeItems: "center" }}>
+                    <span className={styles.muted}>No profile photo uploaded</span>
+                  </div>
+                )}
               </div>
+
               <div>
                 <div className={styles.imgLabel}>National ID Scan</div>
-                <img
-                  className={styles.bigImg}
-                  src={nationalIdScanUrl}
-                  alt="national id"
-                  onError={(e) => (e.currentTarget.style.opacity = "0.2")}
-                />
+                {idSrc ? (
+                  <img className={styles.bigImg} src={idSrc} alt="national id" />
+                ) : (
+                  <div className={styles.bigImg} style={{ display: "grid", placeItems: "center" }}>
+                    <span className={styles.muted}>No national ID scan uploaded</span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          <div className={styles.card}>
-            <div className={styles.cardTitle}>Decision</div>
-
-            <div className={styles.row}>
-              <button
-                className={styles.btnPrimary}
-                onClick={onApprove}
-                disabled={!user.emailVerified}
-                title={!user.emailVerified ? "Verify email first" : ""}
-              >
+            <div className={styles.row} style={{ marginTop: 12 }}>
+              <button className={styles.btnPrimary} onClick={onApprove} disabled={!user.emailVerified}>
                 Approve
               </button>
 
@@ -234,7 +239,7 @@ export default function AdminReviewUserPage() {
                   className={styles.input}
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Rejection reason (required)"
+                  placeholder="Rejection reason"
                 />
                 <button className={styles.btnDanger} onClick={onReject}>
                   Reject
@@ -242,9 +247,11 @@ export default function AdminReviewUserPage() {
               </div>
             </div>
 
-            <p className={styles.muted}>
-              Approve/Reject uses: POST /api/admin/users/approve-reject (rejectionReason required if rejected).
-            </p>
+            {!user.emailVerified ? (
+              <div className={styles.muted} style={{ marginTop: 8 }}>
+                Approve is disabled until email is verified.
+              </div>
+            ) : null}
           </div>
         </>
       )}

@@ -1,6 +1,7 @@
-import { apiFetch } from "../../api/http";
+import { apiFetch } from "../../core/api/http";
 
-// ✅ Login (بدون auth header)
+
+// ✅ Login (Public)
 export function loginRequest({ identifier, password }) {
   return apiFetch(
     "/api/login",
@@ -12,26 +13,26 @@ export function loginRequest({ identifier, password }) {
   );
 }
 
-// ✅ Signup (multipart/form-data) (بدون auth header)
+// ✅ Signup (Public / multipart)
 export function signupRequest(formData) {
   return apiFetch(
     "/api/signup",
     {
       method: "POST",
-      body: formData, // FormData
+      body: formData,
     },
     { auth: false }
   );
 }
 
-// ✅ Upload Profile Photo (محتاج Bearer token)
+// ✅ Upload Profile Photo (Auth required)
 export function uploadProfilePhoto(file) {
   const fd = new FormData();
   fd.append("file", file);
   return apiFetch("/api/profile/photo", { method: "POST", body: fd }, { auth: true });
 }
 
-// (اختياري) لو عندكم endpoint منفصل لرفع صورة البطاقة بعد التسجيل
+// (اختياري) لو عندكم endpoint لرفع البطاقة بعد التسجيل
 export function uploadNationalIdScan(file) {
   const fd = new FormData();
   fd.append("file", file);

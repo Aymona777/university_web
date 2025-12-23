@@ -1,32 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import { createBrowserRouter } from "react-router-dom";
-import { RequireApprovedStudent } from "../core/auth/requireApprovedStudent";
+
 import LoginPage from "../features/auth/LoginPage";
 import SignupPage from "../features/auth/SignupPage";
 import PendingStatusPage from "../features/auth/PendingStatusPage";
 
 import { RequireAuth } from "../core/auth/requireAuth";
 import { RequireAdmin } from "../core/auth/requireAdmin";
+import { RequireApprovedStudent } from "../core/auth/requireApprovedStudent";
 
 import AdminPendingUsersPage from "../features/admin/AdminPendingUsersPage";
 import AdminReviewUserPage from "../features/admin/AdminReviewUserPage";
 
 function MePage() {
   return (
-    <RequireAuth>
-      <div
-        style={{
-          padding: 24,
-          color: "#111",
-          minHeight: "100vh",
-          background: "#f6f7fb",
-        }}
-      >
-        <h2>My Page (placeholder)</h2>
-        <p>✅ Redirect after login worked.</p>
-      </div>
-    </RequireAuth>
+    <div style={{ padding: 24, color: "#111", minHeight: "100vh", background: "#f6f7fb" }}>
+      <h2>My Page (placeholder)</h2>
+      <p>✅ Student can access only after APPROVED.</p>
+    </div>
   );
 }
 
@@ -57,14 +49,23 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/signup", element: <SignupPage /> },
 
-  { path: "/me", element: <RequireApprovedStudent><MePage /></RequireApprovedStudent> },
-
+  // ✅ status: allowed for ANY logged-in user (even PENDING)
   {
     path: "/status",
     element: (
       <RequireAuth>
         <PendingStatusPage />
       </RequireAuth>
+    ),
+  },
+
+  // ✅ me: allowed ONLY for APPROVED students (admins can pass too if you want)
+  {
+    path: "/me",
+    element: (
+      <RequireApprovedStudent>
+        <MePage />
+      </RequireApprovedStudent>
     ),
   },
 
