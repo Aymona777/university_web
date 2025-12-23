@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import { createBrowserRouter } from "react-router-dom";
-
+import StudentProfilePage from "../features/profile/StudentProfilePage";
 import LoginPage from "../features/auth/LoginPage";
 import SignupPage from "../features/auth/SignupPage";
 import PendingStatusPage from "../features/auth/PendingStatusPage";
@@ -60,14 +60,14 @@ export const router = createBrowserRouter([
   },
 
   // ✅ me: allowed ONLY for APPROVED students (admins can pass too if you want)
-  {
-    path: "/me",
-    element: (
-      <RequireApprovedStudent>
-        <MePage />
-      </RequireApprovedStudent>
-    ),
-  },
+ {
+  path: "/me",
+  element: (
+    <RequireApprovedStudent>
+      <StudentProfilePage />
+    </RequireApprovedStudent>
+  ),
+},
 
   { path: "/admin", element: <AdminHome /> },
 
