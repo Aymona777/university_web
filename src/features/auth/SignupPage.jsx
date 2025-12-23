@@ -79,11 +79,12 @@ export default function SignupPage() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Show Password State
+  const [showPassword, setShowPassword] = useState(false);
 
   // step2
   const [nationalId, setNationalId] = useState("");
-
-  // ✅ Selects بدل الأرقام
   const [facultyId, setFacultyId] = useState(FACULTIES[0]?.id ?? 1);
 
   const departments = useMemo(() => getDepartmentsForFaculty(facultyId) || [], [facultyId]);
@@ -92,21 +93,17 @@ export default function SignupPage() {
   const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? "");
   const [year, setYear] = useState(years[0] ?? 1);
 
-  // لما faculty تتغير: اختر أول department وأول year تلقائيًا
-useEffect(() => {
-  const deps = getDepartmentsForFaculty(facultyId) || [];
-  const nextDeptId = deps[0]?.id ?? "";
-
-  const ys = getYearsForFaculty(facultyId) || [1, 2, 3, 4];
-  const nextYear = ys[0] ?? 1;
+  useEffect(() => {
+    const deps = getDepartmentsForFaculty(facultyId) || [];
+    const nextDeptId = deps[0]?.id ?? "";
+    const ys = getYearsForFaculty(facultyId) || [1, 2, 3, 4];
+    const nextYear = ys[0] ?? 1;
     setDepartmentId((prev) => (prev === nextDeptId ? prev : nextDeptId));
-  setYear((prev) => (prev === nextYear ? prev : nextYear));
-}, [facultyId]);
-
+    setYear((prev) => (prev === nextYear ? prev : nextYear));
+  }, [facultyId]);
 
   // step3
   const [nationalIdScan, setNationalIdScan] = useState(null);
-  
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -127,7 +124,6 @@ useEffect(() => {
       if (!password || password.length < 6) return "Password must be at least 6 characters";
       return "";
     }
-
     if (currentStep === 2) {
       if (!isNationalIdValid(nationalId)) return "National ID must be exactly 14 digits";
       if (!facultyId) return "Faculty is required";
@@ -135,17 +131,13 @@ useEffect(() => {
       if (!year) return "Academic year is required";
       return "";
     }
-
     if (currentStep === 3) {
       if (!nationalIdScan) return "National ID scan is required";
       const okType = ["image/jpeg", "image/png"].includes(nationalIdScan.type);
       if (!okType) return "Only JPEG/PNG allowed";
       if (nationalIdScan.size > 10 * 1024 * 1024) return "File must be <= 10MB";
-      
-
       return "";
     }
-
     return "";
   }
 
@@ -166,7 +158,6 @@ useEffect(() => {
     setErrorMsg("");
     setSuccessMsg("");
 
-    // validate all steps before submit
     for (let s = 1; s <= 3; s++) {
       const v = validateStep(s);
       if (v) {
@@ -179,7 +170,7 @@ useEffect(() => {
     const formData = new FormData();
     formData.append("firstName", firstName.trim());
     formData.append("lastName", lastName.trim());
-    formData.append("dateOfBirth", dateOfBirth); // YYYY-MM-DD
+    formData.append("dateOfBirth", dateOfBirth);
     formData.append("email", email.trim().toLowerCase());
     formData.append("password", password);
     formData.append("nationalId", nationalId);
@@ -246,7 +237,6 @@ useEffect(() => {
                     {t.firstName}
                     <input className={styles.input} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                   </label>
-
                   <label className={styles.label}>
                     {t.lastName}
                     <input className={styles.input} value={lastName} onChange={(e) => setLastName(e.target.value)} />
@@ -255,12 +245,7 @@ useEffect(() => {
 
                 <label className={styles.label}>
                   {t.dob}
-                  <input
-                    className={styles.input}
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                  />
+                  <input className={styles.input} type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
                 </label>
 
                 <label className={styles.label}>
@@ -270,12 +255,26 @@ useEffect(() => {
 
                 <label className={styles.label}>
                   {t.password}
-                  <input
-                    className={styles.input}
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      className={styles.input}
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={{ width: "100%", paddingRight: "40px" }}
+                    />
+                     <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: "absolute", right: isRTL ? "auto" : "10px", left: isRTL ? "10px" : "auto",
+                          top: "50%", transform: "translateY(-50%)",
+                          background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "1.2rem"
+                        }}
+                      >
+                        {showPassword ? "🙈" : "👁️"} 
+                      </button>
+                  </div>
                 </label>
               </>
             )}
@@ -353,12 +352,9 @@ useEffect(() => {
                     onChange={(e) => setNationalIdScan(e.target.files?.[0] || null)}
                   />
                 </label>
-
                 <p className={styles.subtitle} style={{ marginTop: 0 }}>
                   Tip: upload a clear photo to speed up approval.
                 </p>
-                
-
               </>
             )}
 

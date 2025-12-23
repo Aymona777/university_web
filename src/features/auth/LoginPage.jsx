@@ -5,14 +5,9 @@ import styles from "./LoginPage.module.css";
 import bg from "../../assets/login-bg.jpg";
 import logo from "../../assets/psu-logo.png";
 import { authStorage } from "../../core/auth/auth.storage";
-
-
 import { useAuth } from "../../core/auth/auth.context";
 import { loginRequest } from "./auth.api";
 
-
-
-// نفس dict بتاع اللغة زي ما هو عندك
 const dict = {
   "en-US": {
     login: "Login",
@@ -20,7 +15,6 @@ const dict = {
     email: "Email",
     password: "Password",
     btnLogin: "Log in",
-    forgot: "Did you forget your password?",
     signup: "Sign up",
     signupText: "Create a new account to start your registration.",
     create: "Create account",
@@ -34,7 +28,6 @@ const dict = {
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     btnLogin: "دخول",
-    forgot: "هل نسيت كلمة المرور؟",
     signup: "إنشاء حساب",
     signupText: "أنشئ حسابًا جديدًا لبدء التسجيل.",
     create: "إنشاء حساب",
@@ -52,8 +45,12 @@ export default function LoginPage() {
   const t = useMemo(() => dict[lang], [lang]);
   const isRTL = lang === "ar-EG";
 
-  const [identifier, setIdentifier] = useState("test@eng.psu.edu.eg");
-  const [password, setPassword] = useState("password123");
+  // 1. Credentials are now empty by default
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  
+  // 2. State for Password Visibility
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -63,8 +60,6 @@ export default function LoginPage() {
     setErrorMsg("");
     setLoading(true);
   
-
- 
     const result = await loginRequest({ identifier, password });
 
     setLoading(false);
@@ -76,7 +71,6 @@ export default function LoginPage() {
 
     const data = result.data;
 
-    // Backend returns: token, id, email, role, status
     const session = {
       token: data.token,
       userId: data.id,
@@ -87,19 +81,19 @@ export default function LoginPage() {
 
     setSession(session);
     authStorage.set(session);
+
     // Redirect logic
-   if (data.role === "admin") {
-  navigate("/admin/pending", { replace: true });
-  return;
-}
+    if (data.role === "admin") {
+      navigate("/admin/pending", { replace: true });
+      return;
+    }
 
-if (data.role === "student" && data.status !== "APPROVED") {
-  navigate("/status", { replace: true });
-  return;
-}
+    if (data.role === "student" && data.status !== "APPROVED") {
+      navigate("/status", { replace: true });
+      return;
+    }
 
-navigate("/me", { replace: true });
-
+    navigate("/me", { replace: true });
   }
 
   return (
@@ -119,7 +113,6 @@ navigate("/me", { replace: true });
               className={styles.langSelect}
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              aria-label="Language"
             >
               <option value="en-US">English (United States)</option>
               <option value="ar-EG">Arabic (Egypt)</option>
@@ -137,23 +130,15 @@ navigate("/me", { replace: true });
           <h1 className={styles.title}>{t.login}</h1>
           <p className={styles.subtitle}>{t.subtitle}</p>
 
-          {/* ✅ Error message */}
-          {errorMsg ? (
-            <div
-              style={{
-                marginBottom: 10,
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: "rgba(255,0,0,0.08)",
-                border: "1px solid rgba(255,0,0,0.18)",
-                color: "rgba(0,0,0,0.8)",
-                fontWeight: 700,
-                fontSize: 13,
-              }}
-            >
+          {errorMsg && (
+            <div style={{
+                marginBottom: 10, padding: "10px 12px", borderRadius: 10,
+                background: "rgba(255,0,0,0.08)", border: "1px solid rgba(255,0,0,0.18)",
+                color: "crimson", fontWeight: 700, fontSize: 13,
+            }}>
               {errorMsg}
             </div>
-          ) : null}
+          )}
 
           <form className={styles.form} onSubmit={onSubmit}>
             <label className={styles.label}>
@@ -171,24 +156,42 @@ navigate("/me", { replace: true });
 
             <label className={styles.label}>
               {t.password}
-              <input
-                className={styles.input}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="********"
-                autoComplete="current-password"
-                disabled={loading}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  className={styles.input}
+                  type={showPassword ? "text" : "password"} // Toggle type
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="********"
+                  autoComplete="current-password"
+                  disabled={loading}
+                  style={{ width: "100%", paddingRight: "40px" }} // Make room for icon
+                />
+                
+                {/* 3. Eye Icon Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute", right: isRTL ? "auto" : "10px", left: isRTL ? "10px" : "auto",
+                    top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "1.2rem"
+                  }}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "🙈" : "👁️"} 
+                </button>
+              </div>
             </label>
 
             <button className={styles.primaryBtn} type="submit" disabled={loading}>
               {loading ? t.loading : t.btnLogin}
             </button>
 
-            <Link className={styles.forgot} to="/signup">
-              {t.forgot}
-            </Link>
+            {/* 4. Forgot Password Removed */}
+            {/* <Link className={styles.forgot} to="/signup">{t.forgot}</Link> */}
+            <div style={{ marginBottom: 16 }}></div>
+
           </form>
 
           <div className={styles.dividerCard}>
