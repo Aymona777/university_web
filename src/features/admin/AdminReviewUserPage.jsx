@@ -1,260 +1,235 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
-import {
-  approveRejectUser,
-  getUserDetails,
-  sendVerification,
-  verifyEmail,
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { 
+  getUserDetails, 
+  getStudentProfile, 
+  approveRejectUser, 
+  sendVerification, 
+  verifyEmailWithToken 
 } from "./admin.api";
 import styles from "./admin.module.css";
 
 export default function AdminReviewUserPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-
+  
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionOk, setActionOk] = useState("");
-
+  const [processing, setProcessing] = useState(false);
+  
   const [rejectReason, setRejectReason] = useState("");
-  const [verificationToken, setVerificationToken] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
 
-  // ✅ FIX: API بيرجع profilePhotoUrl top-level
-  const profilePhotoUrl = useMemo(
-    () => user?.profilePhotoUrl || user?.profile?.profilePhotoUrl || "",
-    [user]
-  );
+  // Manual Verify State
+  const [showManualVerify, setShowManualVerify] = useState(false);
+  const [manualToken, setManualToken] = useState("");
 
-  const nationalIdScanUrl = useMemo(
-    () => user?.nationalIdScanUrl || user?.profile?.nationalIdScanUrl || "",
-    [user]
-  );
+  useEffect(() => {
+    if(userId && userId !== "undefined") {
+      loadAllData();
+    } else {
+      setError("Invalid User ID");
+      setLoading(false);
+    }
+  }, [userId]);
 
-  async function load() {
+  async function loadAllData() {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError("");
-      const data = await getUserDetails(userId);
-      setUser(data);
-    } catch (e) {
-      setError(e.message || "Failed to load user details");
+      const userRes = await getUserDetails(userId);
+      setUser(userRes.data || userRes);
+
+      try {
+        const profileRes = await getStudentProfile(userId);
+        setProfile(profileRes.data || profileRes);
+      } catch (err) {
+        console.log("No extra profile info");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to load user");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  async function onSendVerification() {
+  // --- 1. إرسال الإيميل (وأخذ التوكين في التست) ---
+  async function handleSendEmail() {
+    setProcessing(true);
     try {
-      setActionError("");
-      setActionOk("");
       const res = await sendVerification(userId);
-      if (res?.verificationToken) setVerificationToken(res.verificationToken);
-      setActionOk(res?.message || "Verification triggered");
-    } catch (e) {
-      setActionError(e.message || "Failed to send verification");
-    }
-  }
-
-  async function onVerifyEmail() {
-    try {
-      setActionError("");
-      setActionOk("");
-      if (!verificationToken.trim()) {
-        setActionError("Token is required");
-        return;
+      const data = res.data || res;
+      
+      let msg = "Verification email sent!";
+      // لو الباك إند في وضع testingMode=true، هيرجع التوكين
+      if (data.token) {
+        msg += `\n\n[TEST TOKEN]: ${data.token}\n\n(Copy this token for manual verification)`;
+        // نفتح خانة الإدخال تلقائياً
+        setShowManualVerify(true);
       }
-      const res = await verifyEmail(userId, verificationToken.trim());
-      setActionOk(res?.message || "Email verified");
-      await load();
-    } catch (e) {
-      setActionError(e.message || "Failed to verify email");
+      alert(msg);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setProcessing(false);
     }
   }
 
-  async function onApprove() {
+  // --- 2. التحقق اليدوي بالتوكين ---
+  async function handleManualVerify() {
+    if (!manualToken.trim()) return alert("Please enter the token!");
+    
+    setProcessing(true);
     try {
-      setActionError("");
-      setActionOk("");
-      const res = await approveRejectUser({ userId: Number(userId), approved: true });
-      setActionOk(res?.message || "Approved");
-      navigate("/admin/pending", { replace: true });
-    } catch (e) {
-      setActionError(e.message || "Approve failed");
+      await verifyEmailWithToken(userId, manualToken);
+      alert("✅ Email Verified Successfully!");
+      setShowManualVerify(false);
+      loadAllData(); // تحديث الصفحة عشان الحالة تتغير لـ Verified
+    } catch (err) {
+      alert(err.message || "Verification Failed");
+    } finally {
+      setProcessing(false);
     }
   }
 
-  async function onReject() {
+  async function handleApprove() {
+    if (!window.confirm("Approve this user?")) return;
+    setProcessing(true);
     try {
-      setActionError("");
-      setActionOk("");
-      if (!rejectReason.trim()) {
-        setActionError("Rejection reason is required");
-        return;
-      }
-      const res = await approveRejectUser({
-        userId: Number(userId),
-        approved: false,
-        rejectionReason: rejectReason.trim(),
-      });
-      setActionOk(res?.message || "Rejected");
-      navigate("/admin/pending", { replace: true });
-    } catch (e) {
-      setActionError(e.message || "Reject failed");
+      await approveRejectUser({ userId: parseInt(userId), approved: true });
+      navigate("/admin/pending");
+    } catch (err) {
+      alert(err.message);
+      setProcessing(false);
     }
   }
 
-  // (اختياري) لو الصورة اتخزّنت بنفس الاسم والمتصفح عامل cache
-  // هيفرض reload للصورة مرة واحدة عند كل load
-  const photoSrc = profilePhotoUrl ? `${profilePhotoUrl}${profilePhotoUrl.includes("?") ? "&" : "?"}v=${user?.id || ""}` : "";
-  const idSrc = nationalIdScanUrl ? `${nationalIdScanUrl}${nationalIdScanUrl.includes("?") ? "&" : "?"}v=${user?.id || ""}` : "";
+  async function handleReject() {
+    if (!rejectReason.trim()) return alert("Reason required");
+    setProcessing(true);
+    try {
+      await approveRejectUser({ userId: parseInt(userId), approved: false, rejectionReason: rejectReason });
+      navigate("/admin/pending");
+    } catch (err) {
+      alert(err.message);
+      setProcessing(false);
+    }
+  }
+
+  if (loading) return <div className={styles.pageCenter}>Loading details...</div>;
+  if (error) return <div className={styles.pageCenter}><div className={styles.errorBanner}>{error}</div></div>;
+  if (!user) return <div className={styles.pageCenter}>User not found</div>;
 
   return (
     <div className={styles.page}>
-      <div className={styles.breadcrumbs}>
-        <Link to="/admin/pending" className={styles.link}>← Back to Pending</Link>
+      <div className={styles.topNav}>
+        <button onClick={() => navigate("/admin/pending")} className={styles.backBtn}>
+           ← Back to List
+        </button>
+        <h2 className={styles.reviewTitle}>Review Application</h2>
       </div>
 
-      {loading && <div className={styles.card}>Loading…</div>}
-      {error && <div className={`${styles.card} ${styles.error}`}>{error}</div>}
+      <div className={styles.reviewGrid}>
+        {/* Left Col */}
+        <div className={styles.leftCol}>
+           <div className={styles.card}>
+             <h3 className={styles.cardTitle}>Identity Match</h3>
+             <div className={styles.compareRow}>
+               <div className={styles.photoBox}>
+                 <span>Profile Photo</span>
+                 <img src={user.profilePhotoUrl || user.profilePhoto} alt="Profile" className={styles.profileImg} />
+               </div>
+               <div className={styles.photoBox}>
+                 <span>ID Scan</span>
+                 <img src={user.nationalIdScanUrl || user.nationalIdScan} alt="ID" className={styles.idImg} onClick={() => window.open(user.nationalIdScanUrl, '_blank')} />
+               </div>
+             </div>
+           </div>
 
-      {!loading && !error && user && (
-        <>
-          <div className={styles.header}>
-            <div>
-              <h1 className={styles.title}>
-                Review User <span className={styles.userId}>#{user.id}</span>
-              </h1>
-              <p className={styles.sub}>
-                {user.firstName} {user.lastName} — {user.email}
-              </p>
-            </div>
+           <div className={styles.card}>
+             <h3 className={styles.cardTitle}>Info & Verification</h3>
+             <div className={styles.infoRow}>
+               <span className={styles.label}>Name:</span> <span className={styles.val}>{user.firstName} {user.lastName}</span>
+             </div>
+             <div className={styles.infoRow}>
+               <span className={styles.label}>Email:</span> 
+               <span className={styles.val}>
+                 {user.email} 
+                 {user.emailVerified ? <span className={styles.tagOk}>Verified</span> : <span className={styles.tagBad}>Unverified</span>}
+               </span>
+             </div>
+             
+             {/* Verification Section */}
+             {!user.emailVerified && (
+               <div style={{marginTop: 15, paddingTop: 15, borderTop: '1px solid #333'}}>
+                 <button onClick={handleSendEmail} disabled={processing} className={styles.resendBtn}>
+                   ✉️ Send Verification (Get Test Token)
+                 </button>
+                 
+                 <div style={{marginTop: 10}}>
+                   {!showManualVerify ? (
+                     <button onClick={() => setShowManualVerify(true)} className={styles.btnSec} style={{fontSize: 12, width: '100%'}}>
+                       Enter Token Manually
+                     </button>
+                   ) : (
+                     <div style={{display: 'flex', gap: 5}}>
+                       <input 
+                         className={styles.search} 
+                         style={{width: '100%', padding: '8px'}}
+                         placeholder="Paste Token here..."
+                         value={manualToken}
+                         onChange={e => setManualToken(e.target.value)}
+                       />
+                       <button onClick={handleManualVerify} className={styles.btnPrimary} disabled={processing}>OK</button>
+                     </div>
+                   )}
+                 </div>
+               </div>
+             )}
+           </div>
+        </div>
 
-            <div className={styles.pills}>
-              <span className={styles.pill}>Status: {user.status}</span>
-              <span className={styles.pill}>Role: {user.role}</span>
-              <span className={user.emailVerified ? styles.pillOk : styles.pillBad}>
-                Email {user.emailVerified ? "Verified" : "Not Verified"}
-              </span>
-            </div>
+        {/* Right Col */}
+        <div className={styles.rightCol}>
+          <div className={styles.card}>
+             <h3 className={styles.cardTitle}>Student Profile</h3>
+             {profile ? (
+               <div className={styles.profilePreview}>
+                 <div className={styles.fieldBlock}>
+                   <label>Bio:</label>
+                   <p>{profile.bio || "No bio."}</p>
+                 </div>
+                 <div className={styles.linksList}>
+                   {profile.linkedin ? <a href={profile.linkedin} target="_blank" rel="noreferrer" className={styles.linkItem}>LinkedIn ↗</a> : <span className={styles.missing}>No LinkedIn</span>}
+                   {profile.github ? <a href={profile.github} target="_blank" rel="noreferrer" className={styles.linkItem}>GitHub ↗</a> : <span className={styles.missing}>No GitHub</span>}
+                 </div>
+               </div>
+             ) : (
+               <div className={styles.empty}>Profile not filled yet.</div>
+             )}
           </div>
 
-          {(actionError || actionOk) && (
-            <div className={`${styles.card} ${actionError ? styles.error : styles.okCard}`}>
-              {actionError || actionOk}
-            </div>
-          )}
-
-          <div className={styles.grid2}>
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>User Details</div>
-              <div className={styles.kv}>
-                <div className={styles.k}>National ID</div>
-                <div className={styles.v}>{user.nationalId || "-"}</div>
-
-                <div className={styles.k}>DOB</div>
-                <div className={styles.v}>{user.birthDate || "-"}</div>
-
-                <div className={styles.k}>Faculty / Dept / Year</div>
-                <div className={styles.v}>
-                  {user.faculty || "-"} / {user.department || "-"} / {user.year || "-"}
+          <div className={styles.card}>
+            <h3 className={styles.cardTitle}>Decision</h3>
+            {showRejectInput ? (
+              <div className={styles.rejectForm}>
+                <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Reason..." />
+                <div className={styles.actions}>
+                  <button onClick={() => setShowRejectInput(false)} className={styles.btnSec}>Cancel</button>
+                  <button onClick={handleReject} disabled={processing} className={styles.btnDanger}>Confirm Reject</button>
                 </div>
-
-                <div className={styles.k}>Created</div>
-                <div className={styles.v}>{user.registrationDate || "-"}</div>
               </div>
-            </div>
-
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Email Verification</div>
-              <div className={styles.muted}>Email must be verified before approval.</div>
-
-              <div className={styles.row}>
-                <button className={styles.btnPrimary} onClick={onSendVerification}>
-                  Send verification
-                </button>
+            ) : (
+              <div className={styles.actions}>
+                <button onClick={() => setShowRejectInput(true)} disabled={processing} className={styles.btnDangerOut}>Reject</button>
+                <button onClick={handleApprove} disabled={processing || !user.emailVerified} className={styles.btnPrimaryLarge} title={!user.emailVerified ? "Verify email first" : ""}>Approve</button>
               </div>
-
-              <div className={styles.row}>
-                <input
-                  className={styles.input}
-                  value={verificationToken}
-                  onChange={(e) => setVerificationToken(e.target.value)}
-                  placeholder="Paste token here (testing mode)"
-                />
-                <button className={styles.btn} onClick={onVerifyEmail}>
-                  Verify now
-                </button>
-              </div>
-            </div>
+            )}
           </div>
-
-          <div className={styles.card} style={{ marginTop: 12 }}>
-            <div className={styles.cardTitle}>Photo Comparison</div>
-
-            <div className={styles.images}>
-              <div>
-                <div className={styles.imgLabel}>Profile Photo</div>
-                {photoSrc ? (
-                  <img
-                    className={styles.bigImg}
-                    src={photoSrc}
-                    alt="profile"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className={styles.bigImg} style={{ display: "grid", placeItems: "center" }}>
-                    <span className={styles.muted}>No profile photo uploaded</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div className={styles.imgLabel}>National ID Scan</div>
-                {idSrc ? (
-                  <img className={styles.bigImg} src={idSrc} alt="national id" />
-                ) : (
-                  <div className={styles.bigImg} style={{ display: "grid", placeItems: "center" }}>
-                    <span className={styles.muted}>No national ID scan uploaded</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.row} style={{ marginTop: 12 }}>
-              <button className={styles.btnPrimary} onClick={onApprove} disabled={!user.emailVerified}>
-                Approve
-              </button>
-
-              <div className={styles.rejectBox}>
-                <input
-                  className={styles.input}
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Rejection reason"
-                />
-                <button className={styles.btnDanger} onClick={onReject}>
-                  Reject
-                </button>
-              </div>
-            </div>
-
-            {!user.emailVerified ? (
-              <div className={styles.muted} style={{ marginTop: 8 }}>
-                Approve is disabled until email is verified.
-              </div>
-            ) : null}
-          </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

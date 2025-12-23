@@ -1,28 +1,37 @@
 import { apiRequest } from "../../core/api/apiClient";
+import { endpoints } from "../../core/api/endpoints";
+
+export function getAllUsers() {
+  return apiRequest(endpoints.admin.users);
+}
 
 export function getPendingUsers() {
-  return apiRequest("/api/admin/users/pending");
+  return apiRequest(endpoints.admin.pending);
 }
 
 export function getUserDetails(userId) {
-  return apiRequest(`/api/admin/users/${userId}`);
+  return apiRequest(`${endpoints.admin.userDetail}/${userId}`);
+}
+
+export function getStudentProfile(userId) {
+  return apiRequest(`/api/profile/${userId}`);
 }
 
 export function approveRejectUser({ userId, approved, rejectionReason }) {
-  return apiRequest("/api/admin/users/approve-reject", {
+  return apiRequest(endpoints.admin.approveReject, {
     method: "POST",
     body: JSON.stringify({ userId, approved, rejectionReason }),
   });
 }
 
 export function sendVerification(userId) {
-  return apiRequest(`/api/admin/users/${userId}/send-verification`, {
+  return apiRequest(`${endpoints.admin.sendVerification}/${userId}/send-verification`, {
     method: "POST",
   });
 }
 
-export function verifyEmail(userId, token) {
-  return apiRequest(`/api/admin/users/${userId}/verify-email/${token}`, {
+export function verifyEmailWithToken(userId, token) {
+  return apiRequest(`${endpoints.admin.verifyEmail}/${userId}/verify-email/${token}`, {
     method: "POST",
   });
 }
