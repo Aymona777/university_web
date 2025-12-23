@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { getAllUsers } from "./admin.api"; // لاحظ: بنستخدم getAllUsers
+import { Link, useNavigate } from "react-router-dom"; // تأكد من استيراد Link
+import { getAllUsers } from "./admin.api"; 
 import { authStorage } from "../../core/auth/auth.storage";
 import styles from "./admin.module.css";
 
 export default function AdminPendingUsersPage() {
   const navigate = useNavigate();
+  // ... (نفس الكود القديم للـ state) ...
   const [allUsers, setAllUsers] = useState([]);
-  
-  // Tabs: 'PENDING' | 'UNVERIFIED' | 'ALL'
   const [activeTab, setActiveTab] = useState("PENDING"); 
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -22,14 +21,10 @@ export default function AdminPendingUsersPage() {
     try {
       setLoading(true);
       setError("");
-      // بنجيب الداتابيز كلها والفلترة عندنا
+      // بنستخدم الدالة الموحدة getAllUsers
       const result = await getAllUsers();
-      const data = result.data || result;
-      if (Array.isArray(data)) {
-        setAllUsers(data);
-      } else {
-        setAllUsers([]);
-      }
+      const data = Array.isArray(result) ? result : (result.data || []);
+      setAllUsers(data);
     } catch (e) {
       setError("Failed to load users: " + e.message);
     } finally {
@@ -37,29 +32,21 @@ export default function AdminPendingUsersPage() {
     }
   }
 
+  // ... (نفس كود filtered useMemo القديم) ...
   const filtered = useMemo(() => {
     let list = allUsers;
-
-    // 1. فلترة حسب التاب
     if (activeTab === "PENDING") {
-      // هات الـ Pending بس (سواء مفعل إيميل أو لا)
       list = list.filter(u => u.status === "PENDING");
     } else if (activeTab === "UNVERIFIED") {
-      // هات اللي إيميلهم مش مفعل (عشان نبعتلهم تفعيل)
       list = list.filter(u => !u.emailVerified);
     } 
-    // tab === 'ALL' بيعرض كله
-
-    // 2. البحث
     const query = q.trim().toLowerCase();
     if (!query) return list;
-    
     return list.filter((u) => {
       const name = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
       return (
         name.includes(query) ||
-        String(u.email || "").toLowerCase().includes(query) ||
-        String(u.id || "").includes(query)
+        String(u.email || "").toLowerCase().includes(query)
       );
     });
   }, [allUsers, activeTab, q]);
@@ -73,25 +60,30 @@ export default function AdminPendingUsersPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Admin Dashboard</h1>
-          <p className={styles.sub}>System Overview & Management</p>
+          {/* ✅ زرار جديد يرجعك لصفحة الإحصائيات */}
+          <Link to="/admin" style={{ textDecoration: 'none', color: '#3b82f6', fontSize: 14, fontWeight: 'bold', display: 'block', marginBottom: 5 }}>
+            ⬅ Back to Dashboard
+          </Link>
+          <h1 className={styles.title}>Manage Users</h1>
+          <p className={styles.sub}>Review and manage student accounts</p>
         </div>
         <button onClick={handleLogout} className={styles.logoutBtn}>Logout ➜</button>
       </div>
 
       <div className={styles.controlsCard}>
+        {/* ... (نفس التابات والبحث القديم) ... */}
         <div className={styles.tabs}>
           <button 
             className={`${styles.tab} ${activeTab === "PENDING" ? styles.activeTab : ""}`}
             onClick={() => setActiveTab("PENDING")}
           >
-            ⏳ Pending Requests
+            ⏳ Pending
           </button>
           <button 
              className={`${styles.tab} ${activeTab === "UNVERIFIED" ? styles.activeTab : ""}`}
              onClick={() => setActiveTab("UNVERIFIED")}
           >
-            ✉️ Unverified Emails
+            ✉️ Unverified
           </button>
           <button 
              className={`${styles.tab} ${activeTab === "ALL" ? styles.activeTab : ""}`}
@@ -110,7 +102,7 @@ export default function AdminPendingUsersPage() {
       </div>
 
       {loading && <div className={styles.loading}>Loading users...</div>}
-      {error && <div className={styles.errorBanner}>{error}</div>}
+      {error && <div className={styles.badgeWarning} style={{padding: 10}}>{error}</div>}
 
       {!loading && !error && (
         <div className={styles.tableWrap}>
@@ -119,7 +111,7 @@ export default function AdminPendingUsersPage() {
               <tr>
                 <th>User Info</th>
                 <th>Status</th>
-                <th>Email Verification</th>
+                <th>Email</th>
                 <th>Academic</th>
                 <th>Action</th>
               </tr>
@@ -127,8 +119,8 @@ export default function AdminPendingUsersPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.empty}>
-                    No users found in this category.
+                  <td colSpan={5} style={{padding: 20, textAlign: 'center', color: '#888'}}>
+                    No users found.
                   </td>
                 </tr>
               ) : (
@@ -138,9 +130,8 @@ export default function AdminPendingUsersPage() {
                       <div className={styles.userCell}>
                         <img
                           className={styles.avatar}
-                          src={u.profilePhotoUrl || u.profilePhoto || ""} 
+                          src={u.profilePhotoUrl || u.profilePhoto || "https://via.placeholder.com/40"} 
                           alt="profile"
-                          onError={(e) => (e.currentTarget.style.display = "none")}
                         />
                         <div>
                           <div className={styles.userName}>{u.firstName} {u.lastName}</div>
@@ -150,7 +141,6 @@ export default function AdminPendingUsersPage() {
                     </td>
 
                     <td>
-                      {/* عرض حالة الحساب (Pending/Approved/Rejected) */}
                       <span className={`${styles.statusBadge} ${styles[u.status]}`}>
                         {u.status}
                       </span>
@@ -158,15 +148,15 @@ export default function AdminPendingUsersPage() {
 
                     <td>
                       {u.emailVerified ? (
-                        <span className={styles.badgeSuccess}>✓ Verified</span>
+                        <span className={styles.badgeSuccess}>Verified</span>
                       ) : (
-                        <span className={styles.badgeWarning}>⚠ Not Verified</span>
+                        <span className={styles.badgeWarning}>Not Verified</span>
                       )}
                     </td>
 
                     <td>
                       <div className={styles.academicInfo}>
-                        <div>{u.faculty || "Unknown Faculty"}</div>
+                        <div>{u.faculty}</div>
                         <div style={{fontSize: 11, opacity: 0.7}}>{u.department}</div>
                       </div>
                     </td>
