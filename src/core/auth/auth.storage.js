@@ -17,4 +17,20 @@ export const authStorage = {
   clear() {
     localStorage.removeItem(KEY);
   },
+
+  // ✅ الدوال الضرورية لمنع الشاشة البيضاء
+  getToken() {
+    const session = this.get();
+    return session?.token;
+  },
+
+  getRole() {
+    const session = this.get();
+    return session?.role;
+  },
+
+  getUser() {
+    const session = this.get();
+    return session; 
+  }
 };

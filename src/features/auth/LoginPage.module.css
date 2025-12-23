@@ -122,11 +122,11 @@
   width: min(560px, 92vw);
   border-radius: 22px;
   padding: 28px 28px 22px;
-  background: #e8edff34;
+  background: #e9f1ff5c;
   backdrop-filter: blur(20px);
-  border: 1px solid #e8edff34;
+  border: 1px solid #e9f1ff5c;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
-
+ 
   /* ✅ internal scroll if content is long */
   max-height: calc(100vh - 130px);
   overflow: auto;
@@ -166,18 +166,20 @@
 .form {
   display: grid;
   gap: 12px;
+  
 }
 
 .label {
   display: grid;
   gap: 8px;
   font-family: var(--font-body);
-  color: rgb(223, 229, 246);
+  color: rgba(9, 8, 8, 0.844);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
 }
+
 
 .input {
   height: 46px;
