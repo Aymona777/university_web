@@ -1,3 +1,4 @@
+//eslint-disable jsx-a11y/alt-text
 import React, { useEffect, useState } from "react";
 import { authStorage } from "../../core/auth/auth.storage";
 import { apiFetch } from "../../core/api/http";
